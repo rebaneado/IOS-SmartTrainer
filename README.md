@@ -20,8 +20,10 @@ it can actually drive the trainer from iOS.
   duration/target can be edited.
 - Live ride screen with the current step (color-coded by intensity) + countdown,
   a full-workout completion timeline, an upcoming-steps strip, and color-coded
-  tiles for power, target, cadence (green), heart rate (red), speed (aqua), and
-  distance (yellow) — matching the web app's look.
+  tiles for power, target, cadence (green), speed (aqua), and distance (yellow) —
+  matching the web app's look. The **heart-rate tile is colored by HR zone**
+  (Z1 blue → Z5 red, from the rider's TrainingPeaks zones) and labeled with the
+  zone; the ride summary adds a **time-in-heart-rate-zones** breakdown.
 - **Manual control:** nudge target ±5W, or toggle ERG off for manual resistance.
 - **Auto-pause:** if power and cadence read zero for 5 seconds, the ride pauses
   itself (with a clear indicator) and resumes when you start pedaling again.

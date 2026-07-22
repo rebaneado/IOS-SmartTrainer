@@ -37,6 +37,10 @@ struct RideView: View {
         engine.live.speedKmh.map { $0 * 0.621371 }
     }
 
+    private var hrZone: HrZone? {
+        HrZones.zone(for: engine.live.heartRateBpm)
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
@@ -146,7 +150,11 @@ struct RideView: View {
     private var secondaryNumbers: some View {
         LazyVGrid(columns: [GridItem(.adaptive(minimum: 90), spacing: 14)], spacing: 14) {
             NumberTile(value: engine.live.cadenceRpm.map { String(Int($0)) } ?? "--", label: "rpm", color: Palette.cadence)
-            NumberTile(value: engine.live.heartRateBpm.map(String.init) ?? "--", label: "bpm", color: Palette.heartRate)
+            NumberTile(
+                value: engine.live.heartRateBpm.map(String.init) ?? "--",
+                label: hrZone.map { "\($0.short) · bpm" } ?? "bpm",
+                color: hrZone?.color ?? Palette.heartRate
+            )
             NumberTile(value: speedMph.map { String(format: "%.1f", $0) } ?? "--", label: "mph", color: Palette.speed)
             NumberTile(value: String(format: "%.2f", engine.totalDistanceMiles), label: "miles", color: Palette.distance)
         }

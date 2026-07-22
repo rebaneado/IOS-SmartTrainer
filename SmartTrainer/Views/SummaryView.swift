@@ -24,6 +24,8 @@ struct SummaryView: View {
                     stat("Samples", "\(recording.samples.count)")
                 }
 
+                HrZoneBreakdown(samples: recording.samples)
+
                 VStack(spacing: 10) {
                     Button {
                         exportAndShare()
