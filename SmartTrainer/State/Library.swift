@@ -7,8 +7,12 @@ final class Library: ObservableObject {
     @Published private(set) var workouts: [StoredWorkout] = []
 
     private let storageKey = "smarttrainer.library.v1"
+    private let seededKey = "smarttrainer.seededIronman2026"
 
-    init() { load() }
+    init() {
+        load()
+        seedBundledPlanIfNeeded()
+    }
 
     var folders: [String] {
         var names = [defaultFolder]
@@ -70,6 +74,45 @@ final class Library: ObservableObject {
         workouts.insert(contentsOf: reidentified, at: 0)
         persist()
         return reidentified.count
+    }
+
+    // MARK: Bundled Ironman 2026 plan
+
+    /// Shape of the bundled plan file (no id/importedAt — those are generated here).
+    private struct SeedWorkout: Decodable {
+        let name: String
+        let steps: [WorkoutStep]
+        let source: WorkoutSource?
+        let folder: String?
+    }
+
+    /// On the very first launch (empty library), loads the bundled Ironman 2026
+    /// plan so the workouts are already there. Runs once — if the rider later
+    /// deletes workouts, it won't re-seed.
+    private func seedBundledPlanIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: seededKey) else { return }
+        // Only seed into an empty library, so we never stomp on existing workouts.
+        if workouts.isEmpty { loadBundledPlan() }
+        UserDefaults.standard.set(true, forKey: seededKey)
+    }
+
+    /// Adds the bundled plan's workouts (earliest date first). Returns how many.
+    @discardableResult
+    func loadBundledPlan() -> Int {
+        guard let url = Bundle.main.url(forResource: "ironman-2026-plan", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let seeds = try? JSONDecoder().decode([SeedWorkout].self, from: data) else {
+            return 0
+        }
+        let stored = seeds.map { seed in
+            StoredWorkout(
+                workout: Workout(name: seed.name, steps: seed.steps, source: seed.source),
+                folder: seed.folder ?? defaultFolder
+            )
+        }
+        workouts.insert(contentsOf: stored, at: 0)
+        persist()
+        return stored.count
     }
 
     // MARK: Persistence

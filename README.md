@@ -14,10 +14,15 @@ it can actually drive the trainer from iOS.
 
 - Connects directly to your trainer over Bluetooth (FTMS — Fitness Machine
   Service) and drives ERG mode by pushing target watts as the workout runs.
-- Imports structured workouts from **`.erg`/`.mrc`** (recommended — plain text,
-  no ambiguity) and **`.zwo`** (Zwift). Each workout is saved to an on-device
-  library (survives restarts), shows an interval summary, and every step's
-  duration/target can be edited.
+- **Comes pre-loaded with the Ironman 2026 plan** — 84 planned bike workouts
+  (Feb→Sep, ordered by date, targets tuned to the rider's power zones) are
+  seeded into the library on first launch, so they're already there. The data
+  is bundled at `SmartTrainer/Resources/ironman-2026-plan.json`; a "Reload plan"
+  button re-adds them if cleared.
+- Also imports structured workouts from **`.erg`/`.mrc`** (recommended — plain
+  text, no ambiguity) and **`.zwo`** (Zwift). Each workout is saved to an
+  on-device library (survives restarts), shows an interval summary, and every
+  step's duration/target can be edited.
 - Live ride screen with the current step (color-coded by intensity) + countdown,
   a full-workout completion timeline, an upcoming-steps strip, and color-coded
   tiles for power, target, cadence (green), speed (aqua), and distance (yellow) —

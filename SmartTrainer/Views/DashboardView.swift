@@ -119,12 +119,16 @@ struct DashboardView: View {
 
     private var libraryCard: some View {
         Card(title: "Workout library") {
-            Text("In TrainingPeaks, open a planned workout's Export button and pick a format — .erg is recommended (.zwo also works) — no account access needed.")
+            Text("Your Ironman 2026 plan (84 bike workouts, Feb→Sep, ordered by date) is loaded automatically. Reload it or import your own below.")
                 .font(.footnote).foregroundStyle(.secondary)
 
             HStack {
                 Button("Import workout") { showingImporter = true }
                     .buttonStyle(.borderedProminent)
+                Button("Reload plan") {
+                    let n = library.loadBundledPlan()
+                    libraryMessage = n > 0 ? "Loaded \(n) planned workouts." : "Couldn't find the bundled plan."
+                }
                 Spacer()
             }
 
