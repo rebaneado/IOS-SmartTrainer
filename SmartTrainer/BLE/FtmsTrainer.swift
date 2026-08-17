@@ -154,6 +154,7 @@ final class FtmsTrainer: NSObject, ObservableObject, TrainerLike {
         var bytes: [UInt8] = [op.rawValue]
         bytes.append(contentsOf: payload)
 
+        print("FTMS: send opcode=0x\(String(op.rawValue, radix: 16)) payload=\(payload.map { String(format: "%02x", $0) }.joined(separator: " "))")
         let response: Data = try await withCheckedThrowingContinuation { cont in
             pendingControl = cont
             pendingControlOp = op.rawValue
@@ -168,6 +169,7 @@ final class FtmsTrainer: NSObject, ObservableObject, TrainerLike {
         }
 
         let responseBytes = [UInt8](response)
+        print("FTMS: got response bytes=\(responseBytes.map { String(format: "%02x", $0) }.joined(separator: " "))")
         guard responseBytes.count >= 3,
               responseBytes[0] == FTMS.OpCode.responseCode.rawValue,
               responseBytes[1] == op.rawValue else {
@@ -198,6 +200,7 @@ final class FtmsTrainer: NSObject, ObservableObject, TrainerLike {
         try await ensureControl()
         let clamped = Int16(max(0, min(watts, Int(Int16.max))))
         let payload = [UInt8(truncatingIfNeeded: clamped), UInt8(truncatingIfNeeded: clamped >> 8)]
+        print("FTMS: setTargetPower(\(watts)W) -> clamped=\(clamped) payload=\(payload.map { String(format: "%02x", $0) }.joined(separator: " "))")
         try await send(.setTargetPower, payload: payload)
     }
 

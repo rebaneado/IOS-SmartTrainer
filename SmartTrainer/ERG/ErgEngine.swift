@@ -199,7 +199,15 @@ final class ErgEngine: ObservableObject {
         if ergEnabled && !step.isFreeRide {
             if let target = computeTargetWatts(step: step, elapsedInStep: elapsedInStep), target != lastSentTargetWatts {
                 lastSentTargetWatts = target
-                Task { try? await trainer.setTargetPower(watts: target) }
+                print("ERG: sending target power \(target)W for step \(index) at \(elapsedInStep)s elapsed")
+                Task {
+                    do {
+                        try await trainer.setTargetPower(watts: target)
+                        print("ERG: target power \(target)W confirmed by trainer")
+                    } catch {
+                        print("ERG: setTargetPower(\(target)W) failed: \(error)")
+                    }
+                }
             }
         }
 
