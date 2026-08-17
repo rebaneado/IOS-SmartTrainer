@@ -6,12 +6,13 @@ import SwiftUI
 /// recorded no heart rate.
 struct HrZoneBreakdown: View {
     let samples: [RideSample]
+    let hrZones: HrZones
 
     // Samples are recorded ~1/second, so counting them per zone == seconds in zone.
     private var secondsByZone: [Int: Int] {
         var out: [Int: Int] = [:]
         for s in samples {
-            guard let z = HrZones.zone(for: s.heartRateBpm) else { continue }
+            guard let z = hrZones.zone(for: s.heartRateBpm) else { continue }
             out[z.index, default: 0] += 1
         }
         return out
@@ -29,7 +30,7 @@ struct HrZoneBreakdown: View {
                 // Stacked proportion bar.
                 GeometryReader { geo in
                     HStack(spacing: 2) {
-                        ForEach(HrZones.all) { z in
+                        ForEach(hrZones.all) { z in
                             let sec = byZone[z.index] ?? 0
                             if sec > 0 {
                                 z.color.frame(width: max(2, geo.size.width * CGFloat(sec) / CGFloat(total)))
@@ -42,7 +43,7 @@ struct HrZoneBreakdown: View {
 
                 // Per-zone rows.
                 VStack(spacing: 8) {
-                    ForEach(HrZones.all) { z in
+                    ForEach(hrZones.all) { z in
                         let sec = byZone[z.index] ?? 0
                         let pct = Int((Double(sec) / Double(total) * 100).rounded())
                         HStack(spacing: 10) {

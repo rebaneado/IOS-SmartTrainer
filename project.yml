@@ -44,6 +44,11 @@ targets:
           - bluetooth-central
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+        # Redirect target for Strava's OAuth sign-in (ASWebAuthenticationSession).
+        CFBundleURLTypes:
+          - CFBundleURLName: com.rebaneado.smarttrainer.strava
+            CFBundleURLSchemes:
+              - smarttrainer
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.rebaneado.smarttrainer

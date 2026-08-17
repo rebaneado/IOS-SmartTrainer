@@ -19,6 +19,7 @@ final class AppModel: ObservableObject {
     let hrSensor = HeartRateSensor()
     let library = Library()
     let settings = Settings()
+    let stravaAuth = StravaAuth()
 
     private var hrUnsub: (() -> Void)?
 
@@ -82,13 +83,14 @@ struct RootView: View {
                     DashboardView(model: model)
                 case .ride:
                     if let engine = model.engine {
-                        RideView(engine: engine, isTrial: model.isTrial) { recording in
+                        RideView(engine: engine, isTrial: model.isTrial, hrZones: model.settings.hrZones) { recording in
                             model.finishRide(recording)
                         }
                     }
                 case .summary:
                     if let recording = model.lastRecording {
-                        SummaryView(recording: recording, ftpWatts: model.settings.ftpWatts) {
+                        SummaryView(recording: recording, ftpWatts: model.settings.ftpWatts,
+                                    hrZones: model.settings.hrZones, stravaAuth: model.stravaAuth) {
                             model.doneSummary()
                         }
                     }

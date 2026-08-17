@@ -3,11 +3,17 @@ import SwiftUI
 struct SummaryView: View {
     let recording: RideRecording
     let ftpWatts: Int
+    let hrZones: HrZones
+    @ObservedObject var stravaAuth: StravaAuth
     let onDone: () -> Void
 
     @State private var shareURL: URL?
     @State private var showingShare = false
     @State private var exportError: String?
+
+    @State private var stravaUploading = false
+    @State private var stravaResult: StravaUploader.Result?
+    @State private var stravaError: String?
 
     var body: some View {
         ScrollView {
@@ -24,18 +30,38 @@ struct SummaryView: View {
                     stat("Samples", "\(recording.samples.count)")
                 }
 
-                HrZoneBreakdown(samples: recording.samples)
+                HrZoneBreakdown(samples: recording.samples, hrZones: hrZones)
 
                 VStack(spacing: 10) {
+                    if stravaAuth.connected {
+                        Button {
+                            uploadToStrava()
+                        } label: {
+                            Label(stravaUploading ? "Uploading…" : "Log ride to Strava", systemImage: "figure.outdoor.cycle")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                        .disabled(stravaUploading || stravaResult != nil)
+
+                        if let stravaResult {
+                            Link("View on Strava ↗", destination: stravaResult.url)
+                                .font(.footnote)
+                        }
+                        if let stravaError {
+                            Text(stravaError).font(.footnote).foregroundStyle(.red)
+                        }
+                    }
+
                     Button {
                         exportAndShare()
                     } label: {
                         Label("Export / share ride (.tcx)", systemImage: "square.and.arrow.up")
                             .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.bordered)
 
-                    Text("The .tcx file uploads to Strava, TrainingPeaks, or Garmin Connect.")
+                    Text("The .tcx file also uploads to TrainingPeaks or Garmin Connect.")
                         .font(.footnote).foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
 
@@ -73,6 +99,21 @@ struct SummaryView: View {
             showingShare = true
         } catch {
             exportError = error.localizedDescription
+        }
+    }
+
+    private func uploadToStrava() {
+        stravaError = nil
+        stravaUploading = true
+        Task {
+            do {
+                let token = try await stravaAuth.validAccessToken()
+                let result = try await StravaUploader.upload(recording, accessToken: token)
+                stravaResult = result
+            } catch {
+                stravaError = error.localizedDescription
+            }
+            stravaUploading = false
         }
     }
 }

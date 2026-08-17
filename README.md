@@ -14,11 +14,19 @@ it can actually drive the trainer from iOS.
 
 - Connects directly to your trainer over Bluetooth (FTMS — Fitness Machine
   Service) and drives ERG mode by pushing target watts as the workout runs.
-- **Comes pre-loaded with the Ironman 2026 plan** — 84 planned bike workouts
-  (Feb→Sep, ordered by date, targets tuned to the rider's power zones) are
-  seeded into the library on first launch, so they're already there. The data
-  is bundled at `SmartTrainer/Resources/ironman-2026-plan.json`; a "Reload plan"
-  button re-adds them if cleared.
+- **Comes pre-loaded with a starter Ironman-distance bike plan** — 84 planned
+  workouts, ordered by date — seeded into the library on first launch so
+  there's something to ride immediately. The data is bundled at
+  `SmartTrainer/Resources/ironman-2026-plan.json`; delete the workouts or hit
+  "Reload plan" to bring them back. Nothing in the bundled plan or the app's
+  defaults (FTP, HR zones) identifies any specific person — see
+  [No personal data baked in](#no-personal-data-baked-in).
+- **TrainingPeaks:** TrainingPeaks' API is invite-only for commercial partners
+  (no self-serve access for an indie app, and they're not accepting new
+  partners at the moment) — there's no "Sign in with TrainingPeaks" button
+  possible today. Instead, export a workout from TrainingPeaks as
+  **`.zwo`/`.erg`/`.mrc`** and use **Import workout** below; that's the same
+  mechanism used for Zwift/TrainerRoad/etc. files.
 - Also imports structured workouts from **`.erg`/`.mrc`** (recommended — plain
   text, no ambiguity) and **`.zwo`** (Zwift). Each workout is saved to an
   on-device library (survives restarts), shows an interval summary, and every
@@ -27,7 +35,7 @@ it can actually drive the trainer from iOS.
   a full-workout completion timeline, an upcoming-steps strip, and color-coded
   tiles for power, target, cadence (green), speed (aqua), and distance (yellow) —
   matching the web app's look. The **heart-rate tile is colored by HR zone**
-  (Z1 blue → Z5 red, from the rider's TrainingPeaks zones) and labeled with the
+  (Z1 blue → Z5 red, from your own zones, set in Settings) and labeled with the
   zone; the ride summary adds a **time-in-heart-rate-zones** breakdown.
 - **Manual control:** nudge target ±5W, or toggle ERG off for manual resistance.
 - **Auto-pause:** if power and cadence read zero for 5 seconds, the ride pauses
@@ -36,9 +44,13 @@ it can actually drive the trainer from iOS.
   Wahoo TICKR, Polar) independently of the trainer.
 - **Trial mode:** start any workout with no trainer connected — it runs against
   simulated numbers so you can preview the whole flow.
-- Records the ride and exports it as a **`.tcx`** activity file via the iOS
-  share sheet — upload it to Strava, TrainingPeaks, or Garmin Connect, or email
-  it to yourself.
+- **Strava, one-time sign-in:** connect your Strava account once (Settings —
+  see [Setting up Strava](#setting-up-strava-upload) below); every ride's
+  summary screen then gets a **"Log ride to Strava"** button that uploads the
+  `.tcx` directly via Strava's API — no share sheet needed.
+- Also records the ride and exports it as a **`.tcx`** activity file via the
+  iOS share sheet — upload it to TrainingPeaks or Garmin Connect, or email it
+  to yourself.
 
 ## What's NOT in this v1 (vs. the web app)
 
@@ -46,9 +58,47 @@ it can actually drive the trainer from iOS.
   ~1500 lines and the source of every parsing bug we hit. For iOS v1 the app
   supports `.erg`/`.mrc`/`.zwo` in and `.tcx` out (all plain text/XML). `.fit`
   can be added later.
-- **Direct Strava OAuth upload.** iOS exports via the share sheet instead; drop
-  the `.tcx` into Strava/TrainingPeaks from there. (A native OAuth flow could be
-  added.)
+- **Live TrainingPeaks account sync.** Not possible for an independent app —
+  see above.
+
+## Setting up Strava upload
+
+Strava's API is genuinely self-serve for individuals — unlike TrainingPeaks,
+no approval process, and it's free:
+
+1. Go to <https://www.strava.com/settings/api> (log in with the Strava account
+   you want rides uploaded to) and create an API application.
+   - **Authorization Callback Domain:** enter exactly `smarttrainer` (just
+     that word, no `https://`, no slashes) — that's the custom URL scheme this
+     app registers for the OAuth redirect.
+   - Anything else on the form (name, website, icon) can be anything.
+2. Copy the **Client ID** and **Client Secret** it gives you.
+3. In the app, open **Strava** on the dashboard, paste both in, and tap
+   **Save**.
+4. Tap **Connect to Strava** — this is the one-time sign-in. You'll get
+   Strava's own login/consent screen; approve it and you're done.
+5. From then on, every ride's summary screen has a **"Log ride to Strava"**
+   button.
+
+Your Client ID/Secret and OAuth tokens are stored in the iOS Keychain on your
+device only — never committed to source control, never sent anywhere but
+Strava's API.
+
+## No personal data baked in
+
+Everything that used to be one rider's specific data is now either empty by
+default or clearly a generic starting point you're expected to change:
+
+- **FTP** defaults to 200W — edit it in Settings.
+- **Heart-rate zones** default to a generic five-zone split — edit all four
+  boundaries in Settings to your own (from a lab test, TrainingPeaks, or your
+  watch's estimate).
+- **Strava credentials** are never bundled — you paste in your own.
+- The bundled workout plan has no name, email, or other identifying data in
+  it — it's just workout structure (durations/watts/steps). If you don't want
+  it bundled at all for a public release, delete
+  `SmartTrainer/Resources/ironman-2026-plan.json` and remove the
+  `loadBundledPlan()` call in `SmartTrainer/State/Library.swift`'s `init()`.
 
 ## Requirements to build & run
 
@@ -103,10 +153,26 @@ This is the part only you can do — it needs your Apple account and money:
    app record with the bundle id above.
 3. In Xcode: **Product → Archive**, then **Distribute App → App Store Connect**.
 4. Fill in the listing: screenshots (iPhone + iPad), description, keywords, and
-   a **privacy policy URL** (required). For privacy nutrition labels, this app
-   collects **no data** and has **no backend** — everything stays on device — so
-   the labels are straightforward.
+   a **privacy policy URL** (required — see below).
 5. Submit for review.
+
+### Privacy policy & nutrition labels
+
+This app still has **no backend of its own** — everything stays on-device —
+but once Strava sign-in is added it does talk to a third party, so the
+privacy nutrition label in App Store Connect isn't "collects no data"
+anymore. Answer it accurately:
+
+- **Data linked to identity:** none you collect — Strava handles its own
+  account/auth; you never see or store the rider's Strava password.
+- **Data used to track:** none.
+- **Third-party SDK:** none (Strava is called via plain HTTPS, no SDK).
+- Your **privacy policy** page (required, needs a real URL) should say
+  plainly: the app stores workout/ride data and, if the rider connects
+  Strava, an OAuth token, on-device only; the app talks directly to Strava's
+  API to upload rides if the rider chooses to; no data is sold, shared, or
+  sent to any server you operate (because you don't operate one). A single
+  static page (GitHub Pages, Notion, etc.) satisfies this.
 
 ### Likely App Review notes for this app
 
@@ -115,7 +181,13 @@ This is the part only you can do — it needs your Apple account and money:
 - The `bluetooth-central` **background mode** is declared so an in-progress ride
   keeps its trainer connection if the screen locks. If you don't need background
   operation, removing it from `project.yml`/`Info.plist` makes review simpler.
-- No account, no tracking, no third-party SDKs — which keeps review light.
+- **Strava sign-in:** reviewers will test it, so make sure your own Strava API
+  app (Client ID/Secret you enter in Settings) is live and its Authorization
+  Callback Domain is set correctly (see [Setting up Strava
+  upload](#setting-up-strava-upload)) before submitting — a broken OAuth flow
+  is a common rejection reason.
+- No account system of your own, no tracking, no third-party SDKs — which
+  keeps review comparatively light.
 
 ## Project layout
 
@@ -127,6 +199,7 @@ SmartTrainer/
   Workout/                       # model, .erg/.mrc + .zwo parsers, interval grouping
   ERG/                           # ERG execution engine, ride recording
   Export/                        # TCX activity exporter
+  Strava/                        # OAuth sign-in + ride upload (Keychain-backed)
   State/                         # UserDefaults-backed library + settings
   Views/                         # SwiftUI screens + shared components
   Assets.xcassets/               # app icon + accent color placeholders

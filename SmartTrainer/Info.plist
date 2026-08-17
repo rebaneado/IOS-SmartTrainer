@@ -20,6 +20,17 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.rebaneado.smarttrainer.strava</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>smarttrainer</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>SmartTrainer connects to your smart trainer and optional heart rate strap over Bluetooth to control resistance and record your ride.</string>
 	<key>UIApplicationSceneManifest</key>

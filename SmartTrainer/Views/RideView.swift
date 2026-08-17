@@ -3,6 +3,7 @@ import SwiftUI
 struct RideView: View {
     @ObservedObject var engine: ErgEngine
     let isTrial: Bool
+    let hrZones: HrZones
     let onFinish: (RideRecording) -> Void
 
     private let nudgeStep = 5
@@ -38,7 +39,7 @@ struct RideView: View {
     }
 
     private var hrZone: HrZone? {
-        HrZones.zone(for: engine.live.heartRateBpm)
+        hrZones.zone(for: engine.live.heartRateBpm)
     }
 
     var body: some View {

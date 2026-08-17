@@ -7,6 +7,7 @@ struct DashboardView: View {
     @ObservedObject private var hrSensor: HeartRateSensor
     @ObservedObject private var library: Library
     @ObservedObject private var settings: Settings
+    @ObservedObject private var stravaAuth: StravaAuth
 
     @State private var showingImporter = false
     @State private var showingLibraryImporter = false
@@ -14,6 +15,7 @@ struct DashboardView: View {
     @State private var importError: String?
     @State private var libraryMessage: String?
     @State private var expandedIds: Set<UUID> = []
+    @State private var editingStravaCredentials = false
 
     init(model: AppModel) {
         self.model = model
@@ -21,6 +23,7 @@ struct DashboardView: View {
         self.hrSensor = model.hrSensor
         self.library = model.library
         self.settings = model.settings
+        self.stravaAuth = model.stravaAuth
     }
 
     var body: some View {
@@ -29,6 +32,7 @@ struct DashboardView: View {
                 trainerCard
                 hrCard
                 settingsCard
+                stravaCard
                 libraryCard
             }
             .padding()
@@ -114,12 +118,76 @@ struct DashboardView: View {
                     .frame(width: 90)
                     .textFieldStyle(.roundedBorder)
             }
+
+            Divider().padding(.vertical, 4)
+
+            Text("HEART RATE ZONES (BPM)").font(.caption2).foregroundStyle(.secondary)
+            hrZoneField("Z1 top (Warm Up ends)", $settings.hrZ1Top)
+            hrZoneField("Z2 top (Easy ends)", $settings.hrZ2Top)
+            hrZoneField("Z3 top (Aerobic ends)", $settings.hrZ3Top)
+            hrZoneField("Z4 top (Threshold ends)", $settings.hrZ4Top)
+            Text("Z5 (Maximum) is anything above Z4's top. Set these to your own zones — from a lab test, TrainingPeaks, or your watch's estimate.")
+                .font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    private func hrZoneField(_ label: String, _ value: Binding<Int>) -> some View {
+        HStack {
+            Text(label)
+            Spacer()
+            TextField(label, value: value, format: .number)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .frame(width: 70)
+                .textFieldStyle(.roundedBorder)
+        }
+        .font(.callout)
+    }
+
+    private var stravaCard: some View {
+        Card(title: "Strava") {
+            if !stravaAuth.isConfigured || editingStravaCredentials {
+                Text("Create a free app at strava.com/settings/api (instant, no approval needed). Set its \"Authorization Callback Domain\" to exactly: \(StravaAuth.callbackScheme)")
+                    .font(.footnote).foregroundStyle(.secondary)
+                TextField("Client ID", text: $stravaAuth.clientId)
+                    .textFieldStyle(.roundedBorder)
+                    .keyboardType(.numberPad)
+                SecureField("Client Secret", text: $stravaAuth.clientSecret)
+                    .textFieldStyle(.roundedBorder)
+                Button("Save") { editingStravaCredentials = false }
+                    .disabled(!stravaAuth.isConfigured)
+            } else if stravaAuth.connected {
+                HStack(spacing: 12) {
+                    StatusPill(text: stravaAuth.athleteName.map { "Connected: \($0)" } ?? "Connected",
+                               color: .green)
+                    Spacer()
+                    Button("Disconnect") { stravaAuth.disconnect() }
+                }
+                Button("Edit API credentials") { editingStravaCredentials = true }
+                    .font(.footnote)
+            } else {
+                HStack(spacing: 12) {
+                    StatusPill(text: "Not connected", color: .secondary)
+                    Spacer()
+                    Button(stravaAuth.isBusy ? "Connecting…" : "Connect to Strava") { stravaAuth.connect() }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.orange)
+                        .disabled(stravaAuth.isBusy)
+                }
+                Text("One-time sign-in. After that, every ride's summary screen gets a \"Log ride to Strava\" button.")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Button("Edit API credentials") { editingStravaCredentials = true }
+                    .font(.footnote)
+            }
+            if let error = stravaAuth.errorMessage {
+                Text(error).font(.footnote).foregroundStyle(.red)
+            }
         }
     }
 
     private var libraryCard: some View {
         Card(title: "Workout library") {
-            Text("Your Ironman 2026 plan (84 bike workouts, Feb→Sep, ordered by date) is loaded automatically. Reload it or import your own below.")
+            Text("A starter Ironman-distance bike plan (84 workouts, ordered by date) loads automatically — delete it any time. TrainingPeaks doesn't offer direct account sync for independent apps, so bring in your own plan by exporting workouts from TrainingPeaks as .zwo/.erg/.mrc and importing them below.")
                 .font(.footnote).foregroundStyle(.secondary)
 
             HStack {
