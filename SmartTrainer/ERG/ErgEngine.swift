@@ -95,6 +95,17 @@ final class ErgEngine: ObservableObject {
     func nudgeTarget(_ deltaWatts: Int) {
         manualOffsetWatts += deltaWatts
         refreshPublished()
+        // Push the new target immediately rather than waiting for the next
+        // 1s tick, so the nudge buttons feel instant.
+        guard ergEnabled, let target = targetWatts, target != lastSentTargetWatts else { return }
+        lastSentTargetWatts = target
+        Task {
+            do {
+                try await trainer.setTargetPower(watts: target)
+            } catch {
+                print("ERG: nudge setTargetPower(\(target)W) failed: \(error)")
+            }
+        }
     }
 
     func setErgEnabled(_ enabled: Bool) async {

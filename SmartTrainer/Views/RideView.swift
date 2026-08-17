@@ -138,12 +138,15 @@ struct RideView: View {
                     big: true,
                     borderColor: Palette.power
                 )
-                HStack(spacing: 6) {
+                HStack(spacing: 10) {
                     Button("−\(nudgeStep)W") { engine.nudgeTarget(-nudgeStep) }
+                        .frame(maxWidth: .infinity)
                     Button("+\(nudgeStep)W") { engine.nudgeTarget(nudgeStep) }
+                        .frame(maxWidth: .infinity)
                 }
-                .font(.caption)
-                .controlSize(.small)
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .font(.body.weight(.semibold))
             }
         }
     }
