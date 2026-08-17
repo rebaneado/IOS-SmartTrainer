@@ -3,18 +3,21 @@ import AuthenticationServices
 import Combine
 import UIKit
 
-/// Strava OAuth (Authorization Code flow) via `ASWebAuthenticationSession` —
-/// Strava's API is genuinely self-serve for individuals: create a free app at
-/// https://www.strava.com/settings/api (instant, no partner approval, unlike
-/// TrainingPeaks). The rider pastes their own Client ID/Secret into Settings
-/// once; nothing Strava-related ships baked into the app or its source.
+/// Strava OAuth (Authorization Code flow) via `ASWebAuthenticationSession`.
 ///
-/// Client id/secret and tokens all live in the Keychain, never UserDefaults
+/// The app only ever holds a **Client ID**, which is not secret — Strava's
+/// own docs treat it as public (it's visible in every authorize URL). The
+/// **Client Secret** never ships in the app at all: token exchange goes
+/// through a small proxy server (see `strava-proxy/`) that holds the secret
+/// server-side. That's what keeps the App Store binary free of it — a
+/// decompiled `.ipa` reveals only the Client ID and the proxy's URL, neither
+/// of which lets anyone impersonate the app or mint tokens.
+///
+/// Client ID, proxy URL, and tokens live in the Keychain, never UserDefaults
 /// or source control.
 @MainActor
 final class StravaAuth: NSObject, ObservableObject {
     private static let authorizeURL = "https://www.strava.com/oauth/mobile/authorize"
-    private static let tokenURL = URL(string: "https://www.strava.com/oauth/token")!
     private static let scope = "activity:write"
     /// Must match the "Authorization Callback Domain" set on the Strava API
     /// app page (just the scheme name, no "://").
@@ -24,8 +27,9 @@ final class StravaAuth: NSObject, ObservableObject {
     @Published var clientId: String {
         didSet { KeychainStore.set(clientId.isEmpty ? nil : clientId, forKey: "clientId") }
     }
-    @Published var clientSecret: String {
-        didSet { KeychainStore.set(clientSecret.isEmpty ? nil : clientSecret, forKey: "clientSecret") }
+    /// URL of the deployed token-exchange proxy (see `strava-proxy/README.md`).
+    @Published var proxyURL: String {
+        didSet { KeychainStore.set(proxyURL.isEmpty ? nil : proxyURL, forKey: "proxyURL") }
     }
     @Published private(set) var connected: Bool = false
     @Published private(set) var athleteName: String?
@@ -39,11 +43,11 @@ final class StravaAuth: NSObject, ObservableObject {
     private var expiresAt: Int = 0
     private var session: ASWebAuthenticationSession?
 
-    var isConfigured: Bool { !clientId.isEmpty && !clientSecret.isEmpty }
+    var isConfigured: Bool { !clientId.isEmpty && !proxyURL.isEmpty }
 
     override init() {
         clientId = KeychainStore.get("clientId") ?? ""
-        clientSecret = KeychainStore.get("clientSecret") ?? ""
+        proxyURL = KeychainStore.get("proxyURL") ?? ""
         refreshToken = KeychainStore.get("refreshToken")
         athleteName = KeychainStore.get("athleteName")
         super.init()
@@ -53,7 +57,7 @@ final class StravaAuth: NSObject, ObservableObject {
     func connect() {
         errorMessage = nil
         guard isConfigured else {
-            errorMessage = "Add your Strava Client ID and Client Secret first."
+            errorMessage = "Add your Strava Client ID and token proxy URL first."
             return
         }
         var comps = URLComponents(string: Self.authorizeURL)!
@@ -141,14 +145,15 @@ final class StravaAuth: NSObject, ObservableObject {
     }
     private struct Tokens { let accessToken: String; let refreshToken: String; let expiresAt: Int; let athleteName: String? }
 
+    /// Posts to the token proxy (never directly to Strava) so the Client
+    /// Secret — held only by the proxy — never has to be on this device.
     private func requestToken(body: [String: String]) async throws -> Tokens {
-        guard isConfigured else { throw StravaError.notConfigured }
-        var req = URLRequest(url: Self.tokenURL)
+        guard isConfigured, let url = URL(string: proxyURL) else { throw StravaError.notConfigured }
+        var req = URLRequest(url: url)
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         var payload = body
         payload["client_id"] = clientId
-        payload["client_secret"] = clientSecret
         req.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
         let (data, response) = try await URLSession.shared.data(for: req)
@@ -180,7 +185,7 @@ enum StravaError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: return "Strava isn't configured yet — add your Client ID and Secret in Settings."
+        case .notConfigured: return "Strava isn't configured yet — add your Client ID and token proxy URL in Settings."
         case .notConnected: return "Strava isn't connected yet."
         case .requestFailed(let text): return "Strava request failed: \(text)"
         }

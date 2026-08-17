@@ -64,7 +64,12 @@ it can actually drive the trainer from iOS.
 ## Setting up Strava upload
 
 Strava's API is genuinely self-serve for individuals — unlike TrainingPeaks,
-no approval process, and it's free:
+no approval process, and it's free. Setup has two one-time parts: a Strava API
+app (gives you a public **Client ID**) and a tiny proxy server (holds your
+**Client Secret**, so it's never inside the app that ships to the App Store —
+see [why that matters](strava-proxy/README.md)).
+
+**Part 1 — Strava API app:**
 
 1. Go to <https://www.strava.com/settings/api> (log in with the Strava account
    you want rides uploaded to) and create an API application.
@@ -72,17 +77,26 @@ no approval process, and it's free:
      that word, no `https://`, no slashes) — that's the custom URL scheme this
      app registers for the OAuth redirect.
    - Anything else on the form (name, website, icon) can be anything.
-2. Copy the **Client ID** and **Client Secret** it gives you.
-3. In the app, open **Strava** on the dashboard, paste both in, and tap
-   **Save**.
-4. Tap **Connect to Strava** — this is the one-time sign-in. You'll get
-   Strava's own login/consent screen; approve it and you're done.
-5. From then on, every ride's summary screen has a **"Log ride to Strava"**
+2. Note the **Client ID** (public — fine to have in the app) and **Client
+   Secret** (keep this one — you'll need it in Part 2, not in the app).
+
+**Part 2 — token proxy (~5 minutes, free):** follow
+[`strava-proxy/README.md`](strava-proxy/README.md) to deploy the included
+Cloudflare Worker with your Client Secret. You'll end up with a URL like
+`https://smarttrainer-strava.<you>.workers.dev`.
+
+**Part 3 — connect in the app:**
+
+1. Open **Strava** on the dashboard, paste in the **Client ID** and the
+   **token proxy URL** from Part 2, tap **Save**.
+2. Tap **Connect to Strava** — the one-time sign-in. You'll get Strava's own
+   login/consent screen; approve it and you're done.
+3. From then on, every ride's summary screen has a **"Log ride to Strava"**
    button.
 
-Your Client ID/Secret and OAuth tokens are stored in the iOS Keychain on your
-device only — never committed to source control, never sent anywhere but
-Strava's API.
+Your Client ID, proxy URL, and OAuth tokens are stored in the iOS Keychain on
+your device only — never committed to source control. The Client Secret never
+touches the app or the App Store binary at all; only the proxy holds it.
 
 ## No personal data baked in
 
@@ -158,21 +172,23 @@ This is the part only you can do — it needs your Apple account and money:
 
 ### Privacy policy & nutrition labels
 
-This app still has **no backend of its own** — everything stays on-device —
-but once Strava sign-in is added it does talk to a third party, so the
-privacy nutrition label in App Store Connect isn't "collects no data"
-anymore. Answer it accurately:
+Almost everything stays on-device. The one exception: the token-proxy server
+(`strava-proxy/`) you deploy for Strava sign-in briefly sees the OAuth
+code/tokens in transit to Strava — it doesn't log or store them (see
+`worker.js`), but it does technically make it "a server you operate" for the
+privacy nutrition label. Answer it accurately:
 
 - **Data linked to identity:** none you collect — Strava handles its own
   account/auth; you never see or store the rider's Strava password.
 - **Data used to track:** none.
 - **Third-party SDK:** none (Strava is called via plain HTTPS, no SDK).
 - Your **privacy policy** page (required, needs a real URL) should say
-  plainly: the app stores workout/ride data and, if the rider connects
-  Strava, an OAuth token, on-device only; the app talks directly to Strava's
-  API to upload rides if the rider chooses to; no data is sold, shared, or
-  sent to any server you operate (because you don't operate one). A single
-  static page (GitHub Pages, Notion, etc.) satisfies this.
+  plainly: workout/ride data and Strava tokens are stored on-device only; if
+  the rider connects Strava, OAuth requests pass through a stateless proxy
+  server you operate solely to keep the Strava app secret off-device, which
+  does not log or retain anything; no data is sold or shared. A single static
+  page (GitHub Pages, Notion, etc.) satisfies this — a draft is at
+  `privacy-policy.html` in this repo.
 
 ### Likely App Review notes for this app
 
@@ -181,13 +197,14 @@ anymore. Answer it accurately:
 - The `bluetooth-central` **background mode** is declared so an in-progress ride
   keeps its trainer connection if the screen locks. If you don't need background
   operation, removing it from `project.yml`/`Info.plist` makes review simpler.
-- **Strava sign-in:** reviewers will test it, so make sure your own Strava API
-  app (Client ID/Secret you enter in Settings) is live and its Authorization
-  Callback Domain is set correctly (see [Setting up Strava
-  upload](#setting-up-strava-upload)) before submitting — a broken OAuth flow
-  is a common rejection reason.
-- No account system of your own, no tracking, no third-party SDKs — which
-  keeps review comparatively light.
+- **Strava sign-in:** reviewers will test it, so make sure your Strava API app
+  and token proxy are both live, and the Client ID/proxy URL are entered in
+  Settings, before submitting (see [Setting up Strava
+  upload](#setting-up-strava-upload)) — a broken OAuth flow is a common
+  rejection reason.
+- No account system of your own, no tracking, no third-party SDKs baked into
+  the app binary — the token proxy is a server you control, not an SDK —
+  which keeps review comparatively light.
 
 ## Project layout
 

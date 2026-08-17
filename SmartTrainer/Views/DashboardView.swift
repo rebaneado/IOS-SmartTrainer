@@ -147,13 +147,18 @@ struct DashboardView: View {
     private var stravaCard: some View {
         Card(title: "Strava") {
             if !stravaAuth.isConfigured || editingStravaCredentials {
-                Text("Create a free app at strava.com/settings/api (instant, no approval needed). Set its \"Authorization Callback Domain\" to exactly: \(StravaAuth.callbackScheme)")
+                Text("Two one-time setup steps — see strava-proxy/README.md for the 5-minute walkthrough:")
+                    .font(.footnote).foregroundStyle(.secondary)
+                Text("1. Client ID from strava.com/settings/api (Authorization Callback Domain: \(StravaAuth.callbackScheme)).\n2. Token proxy URL, after deploying strava-proxy/worker.js (holds your Client Secret so it never ships in this app).")
                     .font(.footnote).foregroundStyle(.secondary)
                 TextField("Client ID", text: $stravaAuth.clientId)
                     .textFieldStyle(.roundedBorder)
                     .keyboardType(.numberPad)
-                SecureField("Client Secret", text: $stravaAuth.clientSecret)
+                TextField("Token proxy URL (https://...)", text: $stravaAuth.proxyURL)
                     .textFieldStyle(.roundedBorder)
+                    .keyboardType(.URL)
+                    .autocapitalization(.none)
+                    .disableAutocorrection(true)
                 Button("Save") { editingStravaCredentials = false }
                     .disabled(!stravaAuth.isConfigured)
             } else if stravaAuth.connected {
@@ -163,7 +168,7 @@ struct DashboardView: View {
                     Spacer()
                     Button("Disconnect") { stravaAuth.disconnect() }
                 }
-                Button("Edit API credentials") { editingStravaCredentials = true }
+                Button("Edit Client ID / proxy URL") { editingStravaCredentials = true }
                     .font(.footnote)
             } else {
                 HStack(spacing: 12) {
@@ -176,7 +181,7 @@ struct DashboardView: View {
                 }
                 Text("One-time sign-in. After that, every ride's summary screen gets a \"Log ride to Strava\" button.")
                     .font(.footnote).foregroundStyle(.secondary)
-                Button("Edit API credentials") { editingStravaCredentials = true }
+                Button("Edit Client ID / proxy URL") { editingStravaCredentials = true }
                     .font(.footnote)
             }
             if let error = stravaAuth.errorMessage {
