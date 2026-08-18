@@ -20,9 +20,12 @@ final class StravaAuth: NSObject, ObservableObject {
     private static let authorizeURL = "https://www.strava.com/oauth/mobile/authorize"
     private static let scope = "activity:write"
     /// Must match the "Authorization Callback Domain" set on the Strava API
-    /// app page (just the scheme name, no "://").
+    /// app page (just the scheme name, no "://"). Strava validates that
+    /// setting against the *host* component of redirectUri below — for a URI
+    /// like "smarttrainer://smarttrainer" that's the part right after "://",
+    /// not the scheme — so the host here must equal callbackScheme too.
     static let callbackScheme = "smarttrainer"
-    private static let redirectUri = "\(callbackScheme)://strava-auth"
+    private static let redirectUri = "\(callbackScheme)://\(callbackScheme)"
 
     @Published var clientId: String {
         didSet { KeychainStore.set(clientId.isEmpty ? nil : clientId, forKey: "clientId") }
