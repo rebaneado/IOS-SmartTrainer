@@ -1,7 +1,7 @@
 # SmartTrainer for iOS / iPadOS
 
-A native SwiftUI app for ERG-mode control of a Saris H3 (or any FTMS-compatible
-smart trainer) over Bluetooth, plus an optional heart rate strap. This is the
+A native SwiftUI app for ERG-mode control of any FTMS-compatible smart
+trainer over Bluetooth, plus an optional heart rate strap. This is the
 **iPhone/iPad counterpart** to the SmartTrainer web app — rewritten in Swift so
 it can actually drive the trainer from iOS.
 

@@ -64,7 +64,7 @@ enum FtmsError: LocalizedError {
     }
 }
 
-/// CoreBluetooth client for an FTMS smart trainer (Saris H3, etc.). Exposes
+/// CoreBluetooth client for an FTMS smart trainer. Exposes
 /// ERG-mode control (target power) plus live power/cadence/speed/HR data.
 /// `@MainActor` so all published state and listener callbacks land on the main
 /// thread, safe to bind directly from SwiftUI.

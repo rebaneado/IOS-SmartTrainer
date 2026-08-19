@@ -76,7 +76,7 @@ struct DashboardView: View {
                 if trainer.state == .connected {
                     Button("Disconnect") { trainer.disconnect() }
                 } else {
-                    Button("Connect Saris H3") {
+                    Button("Connect trainer") {
                         Task { await model.connectTrainer() }
                     }
                     .disabled(trainer.state == .connecting)
