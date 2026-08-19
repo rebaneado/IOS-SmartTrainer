@@ -154,7 +154,6 @@ final class FtmsTrainer: NSObject, ObservableObject, TrainerLike {
         var bytes: [UInt8] = [op.rawValue]
         bytes.append(contentsOf: payload)
 
-        print("FTMS: send opcode=0x\(String(op.rawValue, radix: 16)) payload=\(payload.map { String(format: "%02x", $0) }.joined(separator: " "))")
         let response: Data = try await withCheckedThrowingContinuation { cont in
             pendingControl = cont
             pendingControlOp = op.rawValue
@@ -169,7 +168,6 @@ final class FtmsTrainer: NSObject, ObservableObject, TrainerLike {
         }
 
         let responseBytes = [UInt8](response)
-        print("FTMS: got response bytes=\(responseBytes.map { String(format: "%02x", $0) }.joined(separator: " "))")
         guard responseBytes.count >= 3,
               responseBytes[0] == FTMS.OpCode.responseCode.rawValue,
               responseBytes[1] == op.rawValue else {
@@ -200,7 +198,6 @@ final class FtmsTrainer: NSObject, ObservableObject, TrainerLike {
         try await ensureControl()
         let clamped = Int16(max(0, min(watts, Int(Int16.max))))
         let payload = [UInt8(truncatingIfNeeded: clamped), UInt8(truncatingIfNeeded: clamped >> 8)]
-        print("FTMS: setTargetPower(\(watts)W) -> clamped=\(clamped) payload=\(payload.map { String(format: "%02x", $0) }.joined(separator: " "))")
         try await send(.setTargetPower, payload: payload)
     }
 
@@ -280,9 +277,7 @@ extension FtmsTrainer: CBCentralManagerDelegate, CBPeripheralDelegate {
         error: Error?
     ) {
         Task { @MainActor in
-            print("FTMS: discovered \(service.characteristics?.count ?? 0) characteristics, error=\(String(describing: error))")
             for ch in service.characteristics ?? [] {
-                print("FTMS:   characteristic \(ch.uuid) properties=\(ch.properties)")
                 if ch.uuid == FTMS.indoorBikeData {
                     peripheral.setNotifyValue(true, for: ch)
                 } else if ch.uuid == FTMS.controlPoint {
@@ -293,18 +288,8 @@ extension FtmsTrainer: CBCentralManagerDelegate, CBPeripheralDelegate {
             // Both characteristics found → connection is usable.
             if self.controlPoint != nil {
                 self.finishConnect(.success(()))
-            } else {
-                print("FTMS: control point characteristic NOT found on this device")
             }
         }
-    }
-
-    nonisolated func peripheral(
-        _ peripheral: CBPeripheral,
-        didUpdateNotificationStateFor characteristic: CBCharacteristic,
-        error: Error?
-    ) {
-        print("FTMS: notify state for \(characteristic.uuid) isNotifying=\(characteristic.isNotifying) error=\(String(describing: error))")
     }
 
     nonisolated func peripheral(
@@ -317,7 +302,6 @@ extension FtmsTrainer: CBCentralManagerDelegate, CBPeripheralDelegate {
         Task { @MainActor in
             if uuid == FTMS.indoorBikeData {
                 let sample = IndoorBikeDataParser.parse(value)
-                print("FTMS: bike data bytes=\([UInt8](value).map { String(format: "%02x", $0) }.joined(separator: " ")) -> power=\(sample.powerWatts?.description ?? "nil") cadence=\(sample.cadenceRpm?.description ?? "nil") speed=\(sample.speedKmh?.description ?? "nil") listeners=\(self.dataListeners.count)")
                 for listener in self.dataListeners.values { listener(sample) }
             } else if uuid == FTMS.controlPoint {
                 if let pending = self.pendingControl {
