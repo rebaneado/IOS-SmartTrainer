@@ -35,6 +35,8 @@
 	<false/>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>SmartTrainer connects to your smart trainer and optional heart rate strap over Bluetooth to control resistance and record your ride.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>SmartTrainer uses an optional, temporary indoor cycling workout session to keep an active ride running when you switch apps. SmartTrainer does not access your existing Health data or save this session to Health.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>SmartTrainer uses an optional, temporary indoor cycling workout session to keep an active ride running when you switch apps. The session is discarded when the ride ends and is not saved to Health.</string>
 	<key>StravaClientID</key>

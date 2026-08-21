@@ -53,6 +53,14 @@ targets:
           SmartTrainer uses an optional, temporary indoor cycling workout
           session to keep an active ride running when you switch apps. The
           session is discarded when the ride ends and is not saved to Health.
+        # HealthKit validates both privacy-purpose strings for workout sessions,
+        # even though SmartTrainer neither reads existing Health data nor saves
+        # this temporary session to Health.
+        NSHealthShareUsageDescription: >-
+          SmartTrainer uses an optional, temporary indoor cycling workout
+          session to keep an active ride running when you switch apps.
+          SmartTrainer does not access your existing Health data or save this
+          session to Health.
         UIBackgroundModes:
           - bluetooth-central
         UIApplicationSceneManifest:
