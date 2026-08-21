@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 
-enum ErgEngineStatus {
+enum ErgEngineStatus: Equatable {
     case idle, running, paused, finished
 }
 
@@ -15,7 +15,9 @@ private let autoPauseStillSeconds = 5
 @MainActor
 final class ErgEngine: ObservableObject {
     // Published live state the ride view binds to.
-    @Published private(set) var status: ErgEngineStatus = .idle
+    @Published private(set) var status: ErgEngineStatus = .idle {
+        didSet { onStatusChanged?(status) }
+    }
     @Published private(set) var currentStepIndex = 0
     @Published private(set) var elapsedInStepSec = 0
     @Published private(set) var totalElapsedSec = 0
@@ -40,6 +42,10 @@ final class ErgEngine: ObservableObject {
     private var latestLive = IndoorBikeSample()
     private var timer: Timer?
     private var unsubscribeData: (() -> Void)?
+
+    /// Lets the app-level lifecycle mirror manual and automatic ride state
+    /// changes into the optional system workout session.
+    var onStatusChanged: ((ErgEngineStatus) -> Void)?
 
     init(trainer: TrainerLike, workout: Workout, ftpWatts: Double) {
         self.trainer = trainer

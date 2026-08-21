@@ -21,6 +21,7 @@ final class AppModel: ObservableObject {
     let library = Library()
     let settings = Settings()
     let stravaAuth = StravaAuth()
+    private let workoutRuntime = WorkoutRuntime()
 
     private var hrUnsub: (() -> Void)?
 
@@ -54,19 +55,26 @@ final class AppModel: ObservableObject {
             errorMessage = error.localizedDescription
             return
         }
+        engine.onStatusChanged = { [weak self] status in
+            self?.workoutRuntime.update(for: status)
+        }
         self.engine = engine
         activeWorkout = stored
         isTrial = trial
         screen = .ride
+        workoutRuntime.start()
     }
 
     func finishRide(_ recording: RideRecording) {
+        workoutRuntime.end()
+        engine?.onStatusChanged = nil
         engine = nil
         lastRecording = recording
         screen = .summary
     }
 
     func doneSummary() {
+        workoutRuntime.end()
         lastRecording = nil
         activeWorkout = nil
         screen = .dashboard
