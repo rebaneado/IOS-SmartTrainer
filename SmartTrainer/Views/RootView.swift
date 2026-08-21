@@ -1,6 +1,7 @@
 import SwiftUI
+import UIKit
 
-enum AppScreen {
+enum AppScreen: Equatable {
     case dashboard
     case ride
     case summary
@@ -99,5 +100,18 @@ struct RootView: View {
             .navigationTitle("SmartTrainer")
             .navigationBarTitleDisplayMode(.inline)
         }
+        .onAppear(perform: updateIdleTimer)
+        .onChange(of: model.screen) { _ in
+            updateIdleTimer()
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
+    }
+
+    /// An active ride is the one place where the screen needs to stay awake so
+    /// the rider can see power, targets, and safety controls without tapping.
+    private func updateIdleTimer() {
+        UIApplication.shared.isIdleTimerDisabled = model.screen == .ride
     }
 }

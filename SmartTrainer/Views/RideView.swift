@@ -6,6 +6,8 @@ struct RideView: View {
     let hrZones: HrZones
     let onFinish: (RideRecording) -> Void
 
+    @State private var showingEndRideConfirmation = false
+
     private let nudgeStep = 5
     private let upcomingShown = 3
 
@@ -165,28 +167,95 @@ struct RideView: View {
     }
 
     private var controls: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 14) {
+            Text("RIDE CONTROLS")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
             HStack(spacing: 12) {
-                if engine.status == .running {
-                    Button("Pause") { engine.pause() }
-                }
-                if engine.status == .paused {
-                    Button("Resume") { engine.resume() }.buttonStyle(.borderedProminent)
-                }
-                Button(engine.ergEnabled ? "ERG off" : "ERG on") {
+                rideControl(
+                    title: engine.ergEnabled ? "ERG on" : "ERG off",
+                    systemImage: engine.ergEnabled ? "bolt.fill" : "bolt.slash.fill",
+                    tint: engine.ergEnabled ? Palette.power : .gray
+                ) {
                     Task { await engine.setErgEnabled(!engine.ergEnabled) }
                 }
-                Button("Skip") { engine.skipStep() }
+
+                rideControl(
+                    title: engine.status == .paused ? "Resume" : "Pause",
+                    systemImage: engine.status == .paused ? "play.fill" : "pause.fill",
+                    tint: engine.status == .paused ? Palette.cadence : Palette.warning
+                ) {
+                    if engine.status == .paused {
+                        engine.resume()
+                    } else {
+                        engine.pause()
+                    }
+                }
+
+                rideControl(
+                    title: "Skip",
+                    systemImage: "forward.end.fill",
+                    tint: .secondary,
+                    isEnabled: engine.currentStepIndex + 1 < engine.workout.steps.count
+                ) {
+                    engine.skipStep()
+                }
             }
+
+            Button(role: .destructive) {
+                showingEndRideConfirmation = true
+            } label: {
+                Label("End ride", systemImage: "stop.fill")
+                    .font(.headline.weight(.bold))
+                    .frame(maxWidth: .infinity, minHeight: 58)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.white)
+            .background(Color.red.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .accessibilityHint("Shows a confirmation before ending this ride")
+        }
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .padding(.top, 4)
+        .alert("End this ride?", isPresented: $showingEndRideConfirmation) {
+            Button("Keep riding", role: .cancel) { }
             Button("End ride", role: .destructive) {
                 Task {
                     let recording = await engine.stop()
                     onFinish(recording)
                 }
             }
-            .buttonStyle(.bordered)
+        } message: {
+            Text("This stops trainer resistance and takes you to your ride summary.")
         }
-        .padding(.top, 4)
+    }
+
+    private func rideControl(
+        title: String,
+        systemImage: String,
+        tint: Color,
+        isEnabled: Bool = true,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(spacing: 8) {
+                Image(systemName: systemImage)
+                    .font(.title3.weight(.bold))
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 72)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .background(tint.gradient, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .opacity(isEnabled ? 1 : 0.38)
+        .disabled(!isEnabled)
     }
 }
 
