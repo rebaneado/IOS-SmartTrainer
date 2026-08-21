@@ -24,3 +24,6 @@ Carthage/Build/
 # Fastlane
 fastlane/report.xml
 fastlane/screenshots/
+
+# Cloudflare Wrangler local cache
+strava-proxy/.wrangler/

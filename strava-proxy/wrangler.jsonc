@@ -1,0 +1,7 @@
+{
+  "name": "ios-smarttrainer",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-20",
+  "preview_urls": false,
+  "keep_vars": true
+}

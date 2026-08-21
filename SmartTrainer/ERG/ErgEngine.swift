@@ -103,7 +103,9 @@ final class ErgEngine: ObservableObject {
             do {
                 try await trainer.setTargetPower(watts: target)
             } catch {
-                print("ERG: nudge setTargetPower(\(target)W) failed: \(error)")
+#if DEBUG
+                print("ERG nudge failed: \(error.localizedDescription)")
+#endif
             }
         }
     }
@@ -119,7 +121,9 @@ final class ErgEngine: ObservableObject {
                 try await trainer.stopResistance()
             }
         } catch {
-            print("Failed to toggle ERG mode: \(error)")
+#if DEBUG
+            print("ERG mode change failed: \(error.localizedDescription)")
+#endif
         }
         refreshPublished()
     }
@@ -214,7 +218,9 @@ final class ErgEngine: ObservableObject {
                     do {
                         try await trainer.setTargetPower(watts: target)
                     } catch {
-                        print("ERG: setTargetPower(\(target)W) failed: \(error)")
+#if DEBUG
+                        print("ERG target update failed: \(error.localizedDescription)")
+#endif
                     }
                 }
             }

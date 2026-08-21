@@ -1,8 +1,8 @@
 import Foundation
 import Security
 
-/// Minimal Keychain wrapper for storing small secrets (OAuth client id/secret,
-/// tokens). Used instead of UserDefaults because these are credentials, not
+/// Minimal Keychain wrapper for storing OAuth tokens and the athlete display
+/// name. Used instead of UserDefaults because these are credentials, not
 /// preferences — UserDefaults plists are readable from an unencrypted device
 /// backup, the Keychain is not.
 enum KeychainStore {
@@ -18,7 +18,7 @@ enum KeychainStore {
         guard let value, let data = value.data(using: .utf8) else { return }
         var add = query
         add[kSecValueData as String] = data
-        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        add[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
         SecItemAdd(add as CFDictionary, nil)
     }
 

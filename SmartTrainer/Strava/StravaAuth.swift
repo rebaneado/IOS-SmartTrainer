@@ -13,8 +13,8 @@ import UIKit
 /// decompiled `.ipa` reveals only the Client ID and the proxy's URL, neither
 /// of which lets anyone impersonate the app or mint tokens.
 ///
-/// Client ID, proxy URL, and tokens live in the Keychain, never UserDefaults
-/// or source control.
+/// The public Client ID and proxy URL come from Info.plist. OAuth refresh
+/// tokens live in the Keychain and never in UserDefaults or source control.
 @MainActor
 final class StravaAuth: NSObject, ObservableObject {
     private static let authorizeURL = "https://www.strava.com/oauth/mobile/authorize"
@@ -27,13 +27,9 @@ final class StravaAuth: NSObject, ObservableObject {
     static let callbackScheme = "smarttrainer"
     private static let redirectUri = "\(callbackScheme)://\(callbackScheme)"
 
-    @Published var clientId: String {
-        didSet { KeychainStore.set(clientId.isEmpty ? nil : clientId, forKey: "clientId") }
-    }
+    private let clientId: String
     /// URL of the deployed token-exchange proxy (see `strava-proxy/README.md`).
-    @Published var proxyURL: String {
-        didSet { KeychainStore.set(proxyURL.isEmpty ? nil : proxyURL, forKey: "proxyURL") }
-    }
+    private let proxyURL: URL?
     @Published private(set) var connected: Bool = false
     @Published private(set) var athleteName: String?
     @Published var isBusy = false
@@ -45,24 +41,41 @@ final class StravaAuth: NSObject, ObservableObject {
     }
     private var expiresAt: Int = 0
     private var session: ASWebAuthenticationSession?
+    private var pendingState: String?
 
-    var isConfigured: Bool { !clientId.isEmpty && !proxyURL.isEmpty }
+    private var isConfigured: Bool {
+        !clientId.isEmpty && clientId.allSatisfy(\.isNumber) && proxyURL != nil
+    }
 
     override init() {
-        clientId = KeychainStore.get("clientId") ?? ""
-        proxyURL = KeychainStore.get("proxyURL") ?? ""
+        clientId = (Bundle.main.object(forInfoDictionaryKey: "StravaClientID") as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let rawProxyURL = (Bundle.main.object(forInfoDictionaryKey: "StravaTokenProxyURL") as? String ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let url = URL(string: rawProxyURL),
+           url.scheme == "https", url.host != nil,
+           url.user == nil, url.password == nil {
+            proxyURL = url
+        } else {
+            proxyURL = nil
+        }
         refreshToken = KeychainStore.get("refreshToken")
         athleteName = KeychainStore.get("athleteName")
         super.init()
+        // Remove the deprecated user-entered configuration from older builds.
+        KeychainStore.remove("clientId")
+        KeychainStore.remove("proxyURL")
         connected = refreshToken != nil
     }
 
     func connect() {
         errorMessage = nil
         guard isConfigured else {
-            errorMessage = "Add your Strava Client ID and token proxy URL first."
+            errorMessage = "Strava sign-in is temporarily unavailable."
             return
         }
+        let state = UUID().uuidString
+        pendingState = state
         var comps = URLComponents(string: Self.authorizeURL)!
         comps.queryItems = [
             URLQueryItem(name: "client_id", value: clientId),
@@ -70,6 +83,7 @@ final class StravaAuth: NSObject, ObservableObject {
             URLQueryItem(name: "response_type", value: "code"),
             URLQueryItem(name: "approval_prompt", value: "auto"),
             URLQueryItem(name: "scope", value: Self.scope),
+            URLQueryItem(name: "state", value: state),
         ]
         guard let url = comps.url else { return }
 
@@ -82,7 +96,11 @@ final class StravaAuth: NSObject, ObservableObject {
         session.presentationContextProvider = self
         session.prefersEphemeralWebBrowserSession = false
         self.session = session
-        session.start()
+        if !session.start() {
+            pendingState = nil
+            isBusy = false
+            errorMessage = "Couldn't open Strava sign-in. Please try again."
+        }
     }
 
     func disconnect() {
@@ -110,6 +128,10 @@ final class StravaAuth: NSObject, ObservableObject {
 
     private func handleCallback(_ url: URL?, error: Error?) async {
         isBusy = false
+        defer {
+            pendingState = nil
+            session = nil
+        }
         if let error {
             let nsError = error as NSError
             if nsError.domain == ASWebAuthenticationSessionErrorDomain,
@@ -119,10 +141,28 @@ final class StravaAuth: NSObject, ObservableObject {
             errorMessage = error.localizedDescription
             return
         }
-        guard let url,
-              let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                .queryItems?.first(where: { $0.name == "code" })?.value else {
+        guard let url else {
             errorMessage = "Strava didn't return an authorization code."
+            return
+        }
+        let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+        if queryItems.first(where: { $0.name == "error" })?.value == "access_denied" {
+            return
+        }
+        guard let returnedState = queryItems.first(where: { $0.name == "state" })?.value,
+              returnedState == pendingState else {
+            errorMessage = "Strava sign-in couldn't be verified. Please try again."
+            return
+        }
+        guard let code = queryItems.first(where: { $0.name == "code" })?.value,
+              !code.isEmpty else {
+            errorMessage = "Strava didn't return an authorization code."
+            return
+        }
+        let grantedScopes = Set((queryItems.first(where: { $0.name == "scope" })?.value ?? "")
+            .split(separator: ",").map(String.init))
+        guard grantedScopes.contains(Self.scope) else {
+            errorMessage = "Strava activity upload permission wasn't granted."
             return
         }
         do {
@@ -151,17 +191,21 @@ final class StravaAuth: NSObject, ObservableObject {
     /// Posts to the token proxy (never directly to Strava) so the Client
     /// Secret — held only by the proxy — never has to be on this device.
     private func requestToken(body: [String: String]) async throws -> Tokens {
-        guard isConfigured, let url = URL(string: proxyURL) else { throw StravaError.notConfigured }
+        guard isConfigured, let url = proxyURL else { throw StravaError.notConfigured }
         var req = URLRequest(url: url)
         req.httpMethod = "POST"
+        req.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        req.timeoutInterval = 30
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.setValue("application/json", forHTTPHeaderField: "Accept")
         var payload = body
         payload["client_id"] = clientId
         req.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw StravaError.requestFailed(String(data: data, encoding: .utf8) ?? "unknown error")
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw StravaError.requestFailed("HTTP \(status)")
         }
         let decoded = try JSONDecoder().decode(TokenResponse.self, from: data)
         let name = [decoded.athlete?.firstname, decoded.athlete?.lastname]
@@ -188,7 +232,7 @@ enum StravaError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .notConfigured: return "Strava isn't configured yet — add your Client ID and token proxy URL in Settings."
+        case .notConfigured: return "Strava sign-in is temporarily unavailable."
         case .notConnected: return "Strava isn't connected yet."
         case .requestFailed(let text): return "Strava request failed: \(text)"
         }

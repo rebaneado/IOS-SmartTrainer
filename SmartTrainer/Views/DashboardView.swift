@@ -15,7 +15,6 @@ struct DashboardView: View {
     @State private var importError: String?
     @State private var libraryMessage: String?
     @State private var expandedIds: Set<UUID> = []
-    @State private var editingStravaCredentials = false
 
     init(model: AppModel) {
         self.model = model
@@ -128,6 +127,11 @@ struct DashboardView: View {
             hrZoneField("Z4 top (Threshold ends)", $settings.hrZ4Top)
             Text("Z5 (Maximum) is anything above Z4's top. Set these to your own zones — from a lab test, TrainingPeaks, or your watch's estimate.")
                 .font(.footnote).foregroundStyle(.secondary)
+
+            Divider().padding(.vertical, 4)
+
+            Link("Privacy Policy", destination: URL(string: "https://rebaneado.github.io/IOS-SmartTrainer/privacy-policy.html")!)
+                .font(.footnote)
         }
     }
 
@@ -146,30 +150,13 @@ struct DashboardView: View {
 
     private var stravaCard: some View {
         Card(title: "Strava") {
-            if !stravaAuth.isConfigured || editingStravaCredentials {
-                Text("Two one-time setup steps — see strava-proxy/README.md for the 5-minute walkthrough:")
-                    .font(.footnote).foregroundStyle(.secondary)
-                Text("1. Client ID from strava.com/settings/api (Authorization Callback Domain: \(StravaAuth.callbackScheme)).\n2. Token proxy URL, after deploying strava-proxy/worker.js (holds your Client Secret so it never ships in this app).")
-                    .font(.footnote).foregroundStyle(.secondary)
-                TextField("Client ID", text: $stravaAuth.clientId)
-                    .textFieldStyle(.roundedBorder)
-                    .keyboardType(.numberPad)
-                TextField("Token proxy URL (https://...)", text: $stravaAuth.proxyURL)
-                    .textFieldStyle(.roundedBorder)
-                    .keyboardType(.URL)
-                    .autocapitalization(.none)
-                    .disableAutocorrection(true)
-                Button("Save") { editingStravaCredentials = false }
-                    .disabled(!stravaAuth.isConfigured)
-            } else if stravaAuth.connected {
+            if stravaAuth.connected {
                 HStack(spacing: 12) {
                     StatusPill(text: stravaAuth.athleteName.map { "Connected: \($0)" } ?? "Connected",
                                color: .green)
                     Spacer()
                     Button("Disconnect") { stravaAuth.disconnect() }
                 }
-                Button("Edit Client ID / proxy URL") { editingStravaCredentials = true }
-                    .font(.footnote)
             } else {
                 HStack(spacing: 12) {
                     StatusPill(text: "Not connected", color: .secondary)
@@ -181,8 +168,6 @@ struct DashboardView: View {
                 }
                 Text("One-time sign-in. After that, every ride's summary screen gets a \"Log ride to Strava\" button.")
                     .font(.footnote).foregroundStyle(.secondary)
-                Button("Edit Client ID / proxy URL") { editingStravaCredentials = true }
-                    .font(.footnote)
             }
             if let error = stravaAuth.errorMessage {
                 Text(error).font(.footnote).foregroundStyle(.red)

@@ -44,8 +44,8 @@ it can actually drive the trainer from iOS.
   Wahoo TICKR, Polar) independently of the trainer.
 - **Trial mode:** start any workout with no trainer connected — it runs against
   simulated numbers so you can preview the whole flow.
-- **Strava, one-time sign-in:** connect your Strava account once (Settings —
-  see [Setting up Strava](#setting-up-strava-upload) below); every ride's
+- **Strava, one-time sign-in:** tap **Connect to Strava** and approve the
+  standard Strava OAuth screen once; every ride's
   summary screen then gets a **"Log ride to Strava"** button that uploads the
   `.tcx` directly via Strava's API — no share sheet needed.
 - Also records the ride and exports it as a **`.tcx`** activity file via the
@@ -61,13 +61,19 @@ it can actually drive the trainer from iOS.
 - **Live TrainingPeaks account sync.** Not possible for an independent app —
   see above.
 
-## Setting up Strava upload
+## Strava upload
 
-Strava's API is genuinely self-serve for individuals — unlike TrainingPeaks,
-no approval process, and it's free. Setup has two one-time parts: a Strava API
-app (gives you a public **Client ID**) and a tiny proxy server (holds your
-**Client Secret**, so it's never inside the app that ships to the App Store —
-see [why that matters](strava-proxy/README.md)).
+For riders, setup is one tap: choose **Connect to Strava**, authenticate on
+Strava's standard OAuth screen, and approve activity uploads. If the rider is
+already signed in to Strava in the shared system browser session, the flow can
+complete without entering the password again.
+
+The App Store build contains only the public Strava **Client ID** and the HTTPS
+address of a tiny token proxy. The **Client Secret** stays exclusively in the
+proxy's encrypted server-side secret store, so it cannot be extracted from the
+app binary. OAuth refresh tokens are stored in the iOS Keychain on that device.
+
+### Maintainer deployment
 
 **Part 1 — Strava API app:**
 
@@ -85,18 +91,18 @@ see [why that matters](strava-proxy/README.md)).
 Cloudflare Worker with your Client Secret. You'll end up with a URL like
 `https://smarttrainer-strava.<you>.workers.dev`.
 
-**Part 3 — connect in the app:**
+**Part 3 — configure the App Store build:**
 
-1. Open **Strava** on the dashboard, paste in the **Client ID** and the
-   **token proxy URL** from Part 2, tap **Save**.
-2. Tap **Connect to Strava** — the one-time sign-in. You'll get Strava's own
-   login/consent screen; approve it and you're done.
-3. From then on, every ride's summary screen has a **"Log ride to Strava"**
-   button.
+1. Set the public `StravaClientID` and `StravaTokenProxyURL` Info.plist values
+   in `project.yml`.
+2. Deploy `strava-proxy/worker.js` with the matching public Client ID and keep
+   `STRAVA_CLIENT_SECRET` only in Cloudflare's encrypted secret store.
+3. Build the app, tap **Connect to Strava**, and verify the standard OAuth page
+   opens and redirects back to SmartTrainer.
 
-Your Client ID, proxy URL, and OAuth tokens are stored in the iOS Keychain on
-your device only — never committed to source control. The Client Secret never
-touches the app or the App Store binary at all; only the proxy holds it.
+The Client Secret never touches the app or the App Store binary; only the proxy
+holds it. The public Client ID and proxy URL are expected to be visible in the
+binary, while OAuth tokens stay in the device-only iOS Keychain.
 
 ## No personal data baked in
 
@@ -107,7 +113,8 @@ default or clearly a generic starting point you're expected to change:
 - **Heart-rate zones** default to a generic five-zone split — edit all four
   boundaries in Settings to your own (from a lab test, TrainingPeaks, or your
   watch's estimate).
-- **Strava credentials** are never bundled — you paste in your own.
+- **Strava Client Secret and OAuth tokens** are never bundled. The shipped
+  Client ID and proxy URL are public configuration, not credentials.
 - The bundled workout plan has no name, email, or other identifying data in
   it — it's just workout structure (durations/watts/steps). If you don't want
   it bundled at all for a public release, delete
@@ -197,10 +204,9 @@ privacy nutrition label. Answer it accurately:
 - The `bluetooth-central` **background mode** is declared so an in-progress ride
   keeps its trainer connection if the screen locks. If you don't need background
   operation, removing it from `project.yml`/`Info.plist` makes review simpler.
-- **Strava sign-in:** reviewers will test it, so make sure your Strava API app
-  and token proxy are both live, and the Client ID/proxy URL are entered in
-  Settings, before submitting (see [Setting up Strava
-  upload](#setting-up-strava-upload)) — a broken OAuth flow is a common
+- **Strava sign-in:** reviewers can tap **Connect to Strava**, so make sure the
+  configured Strava API app and token proxy are both live before submitting
+  (see [Strava upload](#strava-upload)) — a broken OAuth flow is a common
   rejection reason.
 - No account system of your own, no tracking, no third-party SDKs baked into
   the app binary — the token proxy is a server you control, not an SDK —

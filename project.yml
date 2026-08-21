@@ -7,9 +7,9 @@ options:
 
 settings:
   base:
-    MARKETING_VERSION: "1.0.0"
-    CURRENT_PROJECT_VERSION: "1"
-    DEVELOPMENT_TEAM: "" # fill in your Apple Developer Team ID in Xcode
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "2"
+    DEVELOPMENT_TEAM: ULU63PMMHC
     SWIFT_VERSION: "5.9"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 
@@ -26,6 +26,13 @@ targets:
         CFBundleDisplayName: SmartTrainer
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # The app uses only Apple's standard HTTPS and Bluetooth APIs. Declaring
+        # this avoids an unnecessary export-compliance question for each build.
+        ITSAppUsesNonExemptEncryption: false
+        # Both values are public OAuth configuration. The Strava Client Secret
+        # stays only in the Cloudflare Worker secret store and never ships here.
+        StravaClientID: "272801"
+        StravaTokenProxyURL: "https://ios-smarttrainer.rebaneado-smarttrainer.workers.dev"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait

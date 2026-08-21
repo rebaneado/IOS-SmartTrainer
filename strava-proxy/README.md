@@ -6,6 +6,19 @@ account payment required (Cloudflare's free tier covers this easily).
 
 ## Deploy
 
+The production Worker is configured in `wrangler.jsonc` as
+`ios-smarttrainer`. From this directory, authenticate with Cloudflare and run:
+
+```sh
+npx wrangler deploy --dry-run
+npx wrangler deploy
+```
+
+Wrangler preserves the existing encrypted `STRAVA_CLIENT_SECRET` binding. Do
+not place the secret in source, config, command arguments, or shell history.
+
+For a first-time dashboard deployment instead:
+
 1. Go to <https://dash.cloudflare.com>, sign up free if you don't have an
    account, and open **Workers & Pages**.
 2. **Create** → **Create Worker**. Give it any name (e.g. `smarttrainer-strava`).
@@ -18,13 +31,17 @@ account payment required (Cloudflare's free tier covers this easily).
    Save — this redeploys the Worker with the secret attached.
 5. Copy the Worker's URL — shown at the top of its page, looks like
    `https://smarttrainer-strava.<your-subdomain>.workers.dev`.
-6. In the SmartTrainer app → Settings → Strava, paste that URL into
-   **Token proxy URL**, plus your **Client ID** (the non-secret one, also
-   from the Strava API settings page). Tap **Connect to Strava**.
+6. Put the public Worker URL in `StravaTokenProxyURL` and the public Strava
+   Client ID in `StravaClientID` in `project.yml`, then regenerate the Xcode
+   project. Keep the Client Secret only in Cloudflare.
 
-That's it — the app never sees or stores your Client Secret; only this
-Worker does, and only Cloudflare's servers ever see it in transit between
-the app and Strava.
+That's it — riders can tap **Connect to Strava** without entering developer
+configuration. The app never sees or stores the Client Secret; only this
+Worker does, and only Cloudflare's servers see it during the token exchange.
+
+The included Worker is locked to SmartTrainer's public Client ID, accepts only
+the two required OAuth grant types, rejects missing/oversized credentials, and
+marks all responses `no-store`.
 
 ## Why not skip this and just embed the secret in the app?
 
